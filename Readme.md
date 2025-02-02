@@ -59,79 +59,12 @@ pip install -U gradio langchain_community pymupdf langchain-text-splitters "lang
 
 ### 1. Python Script (RAG Implementation)
 
-Save the following code as `app.py`:
-
-```python
-import ollama
-import gradio as gr
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_chroma import Chroma
-from langchain_ollama import OllamaEmbeddings
-import re
-
-model_name = "deepseek-r1:8b"
-
-def process_pdf(pdf_file_bytes):
-    if pdf_file_bytes is None:
-        return None, None, None
-    
-    print("Processing PDFs ...")
-    pdf_loader = PyMuPDFLoader(pdf_file_bytes)
-    document_data = pdf_loader.load()
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
-    document_chunks = text_splitter.split_documents(document_data)
-    
-    print("Extracted text from PDF. Creating Embeddings...")
-    embeddings_model = OllamaEmbeddings(model=model_name)
-    
-    print("Created Embeddings. Creating Vector Store...")
-    vector_store = Chroma.from_documents(documents=document_chunks, embedding=embeddings_model)
-    
-    print("Created Vector Store. Creating Document Retriever...")
-    document_retriever = vector_store.as_retriever()
-    print("Created Retriever. Returning objects.")
-    return text_splitter, vector_store, document_retriever
-
-def combine_documents(documents):
-    return "\n\n".join(doc.page_content for doc in documents)
-
-def generate_response(question, context):
-    formatted_prompt = f"Question: {question}\n\nContext: {context}"
-    response = ollama.chat(model=model_name, messages=[{'role': 'user', 'content': formatted_prompt}])
-    response_content = response['message']['content']
-    
-    # Remove content between <think> and </think> tags
-    final_answer = re.sub(r'<think>.*?</think>', '', response_content, flags=re.DOTALL).strip()
-    return final_answer
-
-def retrieval_augmented_generation(question, text_splitter, vector_store, retriever):
-    retrieved_documents = retriever.invoke(question)
-    combined_content = combine_documents(retrieved_documents)
-    return generate_response(question, combined_content)
-
-def ask_question(pdf_file_bytes, question):
-    text_splitter, vector_store, retriever = process_pdf(pdf_file_bytes)
-    if text_splitter is None:
-        return None  # No PDF uploaded
-    result = retrieval_augmented_generation(question, text_splitter, vector_store, retriever)
-    return result
-
-# Create a Gradio interface
-interface = gr.Interface(
-    fn=ask_question,
-    inputs=[gr.File(label="Upload Your PDF"), gr.Textbox(label="Your Prompt")],
-    outputs="text",
-    title="LLM-Powered PDF Analysis",
-    description="Ask questions to DeepSeek-R1 about your uploaded PDFs using RAG.",
-)
-interface.launch()
-```
+[View Web Interface Code](./learn-llm-02_webInterface.py)
 
 ### 2. Run the Application
 
 ```sh
-python app.py
+python ./learn-llm-02_webInterface.py
 ```
 
 Gradio will launch a web interface at `http://localhost:7860` where you can upload a PDF and ask questions.
